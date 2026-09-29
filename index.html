@@ -1,1 +1,555 @@
-EPS-TOPIK Exam Platform
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Portal</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4f46e5',
+                        secondary: '#4338ca',
+                        surface: '#ffffff',
+                        background: '#f8fafc',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .radio-custom:checked + div {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+        }
+
+        .radio-custom:checked + div .radio-circle {
+            border-color: #4f46e5;
+        }
+
+        .radio-custom:checked + div .radio-circle::after {
+            content: '';
+            display: block;
+            width: 10px;
+            height: 10px;
+            background-color: #4f46e5;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="showView('home-view')">
+                <div class="w-8 h-8 bg-primary text-white rounded flex items-center justify-center font-bold text-lg">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <h1 class="text-xl font-bold text-slate-800">ExamPortal</h1>
+            </div>
+            <div class="text-sm font-medium text-slate-500" id="header-status">
+                Loading exams...
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Loading View -->
+        <div id="loading-view" class="flex flex-col items-center justify-center h-64 fade-in">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary mb-4"></i>
+            <h2 class="text-lg font-medium text-slate-700">Detecting and loading exams...</h2>
+            <p class="text-slate-500 text-sm mt-2 text-center">Looking for exam1.js, exam2.js in the directory.</p>
+        </div>
+
+        <!-- Home View -->
+        <div id="home-view" class="hidden fade-in">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">Available Exams</h2>
+                <p class="text-slate-600">Select an exam below to start your practice session.</p>
+            </div>
+            
+            <div id="exam-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Exam cards injected here by JS -->
+            </div>
+            
+            <div id="no-exams-msg" class="hidden text-center py-12 bg-white rounded-xl shadow-sm border border-slate-200">
+                <i class="fa-solid fa-folder-open text-4xl text-slate-300 mb-3"></i>
+                <h3 class="text-lg font-medium text-slate-700">No exams found</h3>
+                <p class="text-slate-500 mt-1">Please ensure exam files (exam1.js, exam2.js, etc.) are present in the same directory.</p>
+            </div>
+        </div>
+
+        <!-- Exam View -->
+        <div id="exam-view" class="hidden fade-in">
+            <div class="mb-6 flex items-center gap-4">
+                <button onclick="showView('home-view')" class="w-10 h-10 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div>
+                    <div id="active-exam-badge" class="inline-block px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800 mb-1"></div>
+                    <h2 id="active-exam-title" class="text-2xl font-bold text-slate-800"></h2>
+                    <p id="active-exam-subtitle" class="text-sm text-slate-500 mt-1"></p>
+                </div>
+            </div>
+
+            <!-- Error Message Box -->
+            <div id="exam-error-msg" class="hidden mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
+                <p class="font-medium"><i class="fa-solid fa-circle-exclamation mr-2"></i>Incomplete Exam</p>
+                <p class="text-sm mt-1">Please answer all questions before submitting.</p>
+            </div>
+
+            <div id="questions-container" class="space-y-6">
+                <!-- Questions injected here by JS -->
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-slate-200 flex justify-end">
+                <button onclick="submitExam()" class="px-8 py-3 bg-primary text-white font-medium rounded-lg shadow-md hover:bg-secondary focus:ring-4 focus:ring-indigo-300 transition-all">
+                    Submit Exam <i class="fa-solid fa-paper-plane ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Result View -->
+        <div id="result-view" class="hidden fade-in">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                <div class="bg-slate-50 border-b border-slate-200 p-8 text-center">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Exam Results</h2>
+                    <p id="result-exam-title" class="text-slate-600 mb-6"></p>
+                    
+                    <div class="inline-flex items-center justify-center w-32 h-32 rounded-full bg-white border-4 shadow-inner relative" id="score-circle">
+                        <div class="text-center">
+                            <span id="score-points" class="text-4xl font-black text-slate-800 block leading-none"></span>
+                            <span class="text-sm text-slate-500 font-medium border-t border-slate-200 pt-1 mt-1 block w-16 mx-auto">Score</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6 bg-white flex justify-center gap-8">
+                    <div class="text-center">
+                        <p class="text-sm text-slate-500 font-medium uppercase tracking-wider mb-1">Total</p>
+                        <p class="text-2xl font-bold text-slate-800" id="stat-total">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-green-600 font-medium uppercase tracking-wider mb-1">Correct</p>
+                        <p class="text-2xl font-bold text-green-700" id="stat-correct">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-red-500 font-medium uppercase tracking-wider mb-1">Wrong</p>
+                        <p class="text-2xl font-bold text-red-600" id="stat-wrong">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Detailed Review</h3>
+            
+            <div id="review-container" class="space-y-6">
+                <!-- Review cards injected here by JS -->
+            </div>
+            
+            <div class="mt-10 flex justify-center pb-10">
+                <button onclick="showView('home-view')" class="px-6 py-3 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg shadow-sm hover:bg-slate-50 transition-colors">
+                    Back to Dashboard
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global State
+        window.allExams = window.allExams || {};
+        let loadedExamKeys = [];
+        let scriptIndex = 1;
+        let currentExam = null;
+        let userAnswers = {};
+        let activeCharts = {};
+
+        // 1. Auto-detect and Load Scripts Sequentially
+        function loadNextScript() {
+            const script = document.createElement('script');
+            const examId = `exam${scriptIndex}`;
+            script.src = `${examId}.js`;
+            
+            script.onload = () => {
+                console.log(`Loaded ${examId}.js successfully.`);
+                if (window.allExams[examId]) {
+                    loadedExamKeys.push(examId);
+                }
+                scriptIndex++;
+                loadNextScript(); // Load next in sequence
+            };
+            
+            script.onerror = () => {
+                // Failed to load, meaning we reached the end of the sequence
+                console.log(`Finished loading exams. Total loaded: ${loadedExamKeys.length}`);
+                
+                // Fallback for demo environment if no files were found
+                if (loadedExamKeys.length === 0 && scriptIndex === 1) {
+                    injectDemoExams();
+                } else {
+                    finishLoading();
+                }
+            };
+            
+            document.body.appendChild(script);
+        }
+
+        function finishLoading() {
+            document.getElementById('header-status').innerText = `${loadedExamKeys.length} exams loaded`;
+            renderHome();
+        }
+
+        function injectDemoExams() {
+            // Only used if actual external files fail to load (e.g. preview environment)
+            window.allExams['exam1'] = {
+                id: 'exam1', title: 'Sample Exam 1', subtitle: 'Vocabulary Basics', badge: 'Vocabulary', description: 'A small sample to test the UI if files are missing.',
+                questions: [
+                    { id: 1, type: "text", title: "1. What is the synonym of 'Happy'?", options: ["Sad", "Joyful", "Angry", "Tired"], answer: 1, explanation: "Joyful is a synonym for happy." },
+                    { id: 2, type: "text", title: "2. What is the antonym of 'Hot'?", options: ["Warm", "Boiling", "Cold", "Spicy"], answer: 2, explanation: "Cold is the opposite of hot." }
+                ]
+            };
+            window.allExams['exam2'] = {
+                id: 'exam2', title: 'Sample External Exam', subtitle: 'Redirect Test', badge: 'External', isExternal: true, url: 'https://example.com', description: 'This simulates an external link exam.'
+            };
+            loadedExamKeys = ['exam1', 'exam2'];
+            finishLoading();
+        }
+
+        // Navigation Helper
+        function showView(viewId) {
+            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('home-view').classList.add('hidden');
+            document.getElementById('exam-view').classList.add('hidden');
+            document.getElementById('result-view').classList.add('hidden');
+            
+            // Clean up charts if leaving exam view
+            if (viewId !== 'exam-view' && viewId !== 'result-view') {
+                destroyCharts();
+            }
+            
+            document.getElementById(viewId).classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        // Render Home Screen (Exam List)
+        function renderHome() {
+            const listContainer = document.getElementById('exam-list');
+            const noExamsMsg = document.getElementById('no-exams-msg');
+            
+            listContainer.innerHTML = '';
+            
+            if (loadedExamKeys.length === 0) {
+                noExamsMsg.classList.remove('hidden');
+            } else {
+                noExamsMsg.classList.add('hidden');
+                
+                loadedExamKeys.forEach((key, index) => {
+                    const exam = window.allExams[key];
+                    const isExt = exam.isExternal;
+                    
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group flex flex-col";
+                    card.onclick = () => openExam(exam.id);
+                    
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-sm">
+                                ${index + 1}
+                            </span>
+                            ${exam.badge ? `<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700">${exam.badge}</span>` : ''}
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-1 group-hover:text-primary transition-colors">${exam.title}</h3>
+                        ${exam.subtitle ? `<p class="text-sm font-medium text-slate-500 mb-3">${exam.subtitle}</p>` : ''}
+                        <p class="text-slate-600 text-sm flex-grow">${exam.description || ''}</p>
+                        
+                        <div class="mt-5 pt-4 border-t border-slate-100 flex items-center text-sm font-semibold text-primary">
+                            ${isExt ? 'Open External Link <i class="fa-solid fa-external-link-alt ml-2"></i>' : 'Start Exam <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>'}
+                        </div>
+                    `;
+                    listContainer.appendChild(card);
+                });
+            }
+            showView('home-view');
+        }
+
+        // Handle Opening an Exam
+        function openExam(examId) {
+            const exam = window.allExams[examId];
+            if (!exam) return;
+            
+            if (exam.isExternal && exam.url) {
+                window.open(exam.url, '_blank');
+                return;
+            }
+            
+            currentExam = exam;
+            userAnswers = {}; // Reset answers
+            document.getElementById('exam-error-msg').classList.add('hidden');
+            
+            // Set Header
+            document.getElementById('active-exam-title').innerText = exam.title;
+            document.getElementById('active-exam-subtitle').innerText = exam.subtitle || '';
+            const badgeEl = document.getElementById('active-exam-badge');
+            if (exam.badge) {
+                badgeEl.innerText = exam.badge;
+                badgeEl.classList.remove('hidden');
+            } else {
+                badgeEl.classList.add('hidden');
+            }
+            
+            renderQuestions();
+            showView('exam-view');
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            destroyCharts(); // Clear previous charts
+            
+            if (!currentExam.questions || currentExam.questions.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">No questions available for this exam.</p>`;
+                return;
+            }
+            
+            currentExam.questions.forEach((q, index) => {
+                const qCard = document.createElement('div');
+                qCard.className = "bg-white p-6 rounded-xl shadow-sm border border-slate-200";
+                
+                let chartHtml = '';
+                if (q.chartType && q.data) {
+                    const canvasId = `chart_${currentExam.id}_${q.id}`;
+                    chartHtml = `<div class="my-6 max-w-md mx-auto aspect-square relative"><canvas id="${canvasId}"></canvas></div>`;
+                }
+
+                let optionsHtml = '';
+                q.options.forEach((opt, optIndex) => {
+                    optionsHtml += `
+                        <label class="block cursor-pointer relative">
+                            <input type="radio" name="q_${q.id}" value="${optIndex}" class="radio-custom sr-only" onchange="selectAnswer(${q.id}, ${optIndex})">
+                            <div class="p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-3">
+                                <div class="radio-circle w-5 h-5 rounded-full border-2 border-slate-300 relative flex-shrink-0"></div>
+                                <span class="text-slate-700">${opt}</span>
+                            </div>
+                        </label>
+                    `;
+                });
+                
+                const titleText = q.title ? q.title : q.q; // Handle differences in provided data structure
+                
+                qCard.innerHTML = `
+                    <div class="mb-4">
+                        ${q.topic ? `<span class="inline-block px-2 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded mb-2">${q.topic}</span>` : ''}
+                        <h3 class="text-lg font-bold text-slate-800 leading-snug">${titleText}</h3>
+                        ${q.word ? `<div class="mt-3 p-4 bg-slate-50 rounded-lg text-center"><span class="text-2xl font-black text-primary">${q.word}</span></div>` : ''}
+                    </div>
+                    ${chartHtml}
+                    <div class="space-y-3 mt-4">
+                        ${optionsHtml}
+                    </div>
+                `;
+                container.appendChild(qCard);
+                
+                // Initialize chart if needed after DOM insertion
+                if (q.chartType && q.data) {
+                    setTimeout(() => initChart(`chart_${currentExam.id}_${q.id}`, q), 0);
+                }
+            });
+        }
+
+        function selectAnswer(qId, optIndex) {
+            userAnswers[qId] = optIndex;
+            document.getElementById('exam-error-msg').classList.add('hidden');
+        }
+
+        function initChart(canvasId, q) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+            
+            const config = {
+                type: q.chartType === 'pie' ? 'pie' : 'bar',
+                data: {
+                    labels: q.data.labels,
+                    datasets: [{
+                        label: q.unit || 'Value',
+                        data: q.data.values,
+                        backgroundColor: [
+                            'rgba(79, 70, 229, 0.7)',
+                            'rgba(56, 189, 248, 0.7)',
+                            'rgba(167, 139, 250, 0.7)',
+                            'rgba(244, 114, 182, 0.7)',
+                            'rgba(251, 146, 60, 0.7)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: q.chartType === 'pie' ? 'bottom' : 'none' }
+                    }
+                }
+            };
+            activeCharts[canvasId] = new Chart(ctx, config);
+        }
+
+        function destroyCharts() {
+            Object.values(activeCharts).forEach(chart => chart.destroy());
+            activeCharts = {};
+        }
+
+        function submitExam() {
+            if (!currentExam || !currentExam.questions) return;
+            
+            // Validation: Check if all questions are answered
+            const totalQ = currentExam.questions.length;
+            const answered = Object.keys(userAnswers).length;
+            
+            if (answered < totalQ) {
+                document.getElementById('exam-error-msg').classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+            
+            // Calculate Score
+            let correctCount = 0;
+            const reviewData = [];
+            
+            currentExam.questions.forEach(q => {
+                const userAns = parseInt(userAnswers[q.id]);
+                const correctAns = parseInt(q.answer);
+                const isCorrect = userAns === correctAns;
+                
+                if (isCorrect) correctCount++;
+                
+                const titleText = q.title ? q.title : q.q;
+                
+                reviewData.push({
+                    q: q,
+                    title: titleText,
+                    userAns: userAns,
+                    correctAns: correctAns,
+                    isCorrect: isCorrect,
+                    explanation: q.explanation || 'No explanation provided.'
+                });
+            });
+            
+            renderSummary(correctCount, totalQ, reviewData);
+        }
+
+        function renderSummary(correctCount, totalQ, reviewData) {
+            document.getElementById('result-exam-title').innerText = currentExam.title;
+            document.getElementById('score-points').innerText = `${correctCount}/${totalQ}`;
+            
+            document.getElementById('stat-total').innerText = totalQ;
+            document.getElementById('stat-correct').innerText = correctCount;
+            document.getElementById('stat-wrong').innerText = totalQ - correctCount;
+            
+            // Set circle border color based on score
+            const percentage = correctCount / totalQ;
+            const circle = document.getElementById('score-circle');
+            if (percentage >= 0.8) circle.className = circle.className.replace(/border-\w+-\d+/, '') + " border-green-500";
+            else if (percentage >= 0.5) circle.className = circle.className.replace(/border-\w+-\d+/, '') + " border-yellow-400";
+            else circle.className = circle.className.replace(/border-\w+-\d+/, '') + " border-red-500";
+            
+            const reviewContainer = document.getElementById('review-container');
+            reviewContainer.innerHTML = '';
+            
+            reviewData.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = `p-6 rounded-xl border-l-4 shadow-sm bg-white ${item.isCorrect ? 'border-green-500' : 'border-red-500'}`;
+                
+                let optionsHtml = '';
+                item.q.options.forEach((opt, optIdx) => {
+                    let styleClass = "text-slate-600";
+                    let icon = "";
+                    
+                    if (optIdx === item.correctAns) {
+                        styleClass = "text-green-700 font-bold bg-green-50 rounded px-2 py-1 -ml-2";
+                        icon = `<i class="fa-solid fa-check text-green-500 mr-2"></i>`;
+                    } else if (optIdx === item.userAns && !item.isCorrect) {
+                        styleClass = "text-red-600 line-through rounded px-2 py-1 -ml-2";
+                        icon = `<i class="fa-solid fa-xmark text-red-500 mr-2"></i>`;
+                    } else {
+                        icon = `<span class="w-4 inline-block mr-2 text-slate-300">•</span>`;
+                    }
+                    
+                    optionsHtml += `<div class="${styleClass} mb-1 flex items-center">${icon} ${opt}</div>`;
+                });
+                
+                card.innerHTML = `
+                    <div class="flex items-start justify-between mb-3">
+                        <h4 class="font-bold text-slate-800 pr-4">${item.title}</h4>
+                        <span class="shrink-0 px-2.5 py-1 text-xs font-bold rounded ${item.isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${item.isCorrect ? 'CORRECT' : 'WRONG'}
+                        </span>
+                    </div>
+                    ${item.q.word ? `<div class="mb-3 p-3 bg-slate-50 rounded text-center font-bold text-slate-700">${item.q.word}</div>` : ''}
+                    <div class="pl-2 mb-4 border-l-2 border-slate-100">
+                        ${optionsHtml}
+                    </div>
+                    <div class="bg-indigo-50/50 rounded-lg p-4 text-sm text-indigo-900 border border-indigo-100">
+                        <p class="font-bold mb-1"><i class="fa-solid fa-lightbulb text-yellow-500 mr-1"></i> Explanation:</p>
+                        <p>${item.explanation}</p>
+                    </div>
+                `;
+                
+                reviewContainer.appendChild(card);
+            });
+            
+            showView('result-view');
+        }
+
+        // Initialize application on load
+        window.onload = () => {
+            loadNextScript();
+        };
+    </script>
+</body>
+</html>
